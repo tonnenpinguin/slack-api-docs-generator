@@ -53,7 +53,7 @@ methods.each do |name|
   errors = errors.nil? ? {} : errors.search("tr").each_with_object({}){|tr, o|
     tds = tr.search("td")
     next if tds.size == 0
-    o[tds[0].text] = tds[1].text.strip
+    o[tds[0].text] = ReverseMarkdown.convert(tds[1].inner_html).strip
   }
   File.write("../slack-api-docs/methods/#{name}.json", JSON.pretty_generate({
     desc: page.search("section[@data-tab=docs]/p")[0].text, 
