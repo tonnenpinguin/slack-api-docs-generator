@@ -2,6 +2,7 @@ require 'mechanize'
 require "reverse_markdown"
 require "pry"
 
+target_dir = ARGV[0] || "../slack-api-docs"
 agent = Mechanize.new
 ReverseMarkdown.config do |config|
   config.unknown_tags     = :pass_through
@@ -35,7 +36,7 @@ methods.each do |name|
   # markdown
   source = page.search("section[@data-tab=docs]")[0].children.to_s
   markdown = ReverseMarkdown.convert source
-  File.write("../slack-api-docs/methods/#{name}.md", markdown)
+  File.write("#{target_dir}/methods/#{name}.md", markdown)
 
   # json
   args = page.search("section[@data-tab=docs]/*[text()=\"Arguments\"]~table")[0]
@@ -55,7 +56,7 @@ methods.each do |name|
     next if tds.size == 0
     o[tds[0].text] = ReverseMarkdown.convert(tds[1].inner_html).strip
   }
-  File.write("../slack-api-docs/methods/#{name}.json", JSON.pretty_generate({
+  File.write("#{target_dir}/methods/#{name}.json", JSON.pretty_generate({
     desc: page.search("section[@data-tab=docs]/p")[0].text, 
     args: args,
     errors: errors,
