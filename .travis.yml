@@ -1,0 +1,10 @@
+language: ruby
+rvm:
+- 2.0.0
+before_install:
+- openssl aes-256-cbc -K $encrypted_20c899a2894a_key -iv $encrypted_20c899a2894a_iv
+  -in doc_deploy_key.enc -out ~/.ssh/id_rsa -d
+- chmod 600 ~/.ssh/id_rsa
+- git config --global user.email "aki@aki017.info"
+- git config --global user.name "Auto Bot"
+script: sh ci.sh
