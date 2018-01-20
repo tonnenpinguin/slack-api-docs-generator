@@ -25,7 +25,7 @@ module ReverseMarkdown
 end
 
 page  = agent.get 'https://api.slack.com/methods'
-methods = page.search(".card table a").map(&:text)
+methods = page.search(".bold.block").map(&:text)
 
 methods.each do |name|
   sleep 1
