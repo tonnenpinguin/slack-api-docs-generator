@@ -1,6 +1,7 @@
 require 'mechanize'
 require "reverse_markdown"
 require "pry"
+require "json"
 
 target_dir = ARGV[0] || "../slack-api-docs"
 agent = Mechanize.new
@@ -18,15 +19,19 @@ module ReverseMarkdown
           "\n" << treat_children(node).strip << "\n"
         end
       end
+
+      def convert(node, other)
+        "\n" << treat_children(node, other).strip << "\n"
+      end
     end
 
     register :p, P.new
   end
 end
 
-page  = agent.get 'https://api.slack.com/methods'
-methods = page.search(".bold.block").map(&:text)
-
+# page  = agent.get 'https://api.slack.com/methods'
+# methods = page.search(".apiReferenceFilterableList__listItemLink").map(&:text)
+methods = ["admin.analytics.getFile"]
 methods.each do |name|
   sleep 1
   puts name
@@ -35,30 +40,45 @@ methods.each do |name|
 
   # markdown
   source = page.search("section[@data-tab=docs]")[0].children.to_s
-  markdown = ReverseMarkdown.convert source
+  markdown = ReverseMarkdown.convert(source,  unknown_tags: :drop)
   File.write("#{target_dir}/methods/#{name}.md", markdown)
 
   # json
-  args = page.search("section[@data-tab=docs]/*[text()=\"Arguments\"]~table")[0]
-  args = args.search("tr").each_with_object({}){|tr, o|
-    tds = tr.search("td")
-    next if tds.size == 0
-    o[tds[0].text] = {
-      required: tds[2].text.strip == "Required",
-      example: tds[1].text.strip,
-      desc: tds[3].text.strip,
+  args = page.search(".apiMethodPage__argumentRow").each_with_object({}){|arg, o|
+    argName = arg.search(".apiMethodPage__argument").text
+    example = arg.search(".apiReference__exampleCode").inner_html
+    desc = arg.search(".apiMethodPage__argumentDesc > p").inner_html
+    o[argName] = {
+      required: arg.search(".apiMethodPage__argumentOptionality--required").size == 1,
+      example: ReverseMarkdown.convert(example).strip,
+      desc: ReverseMarkdown.convert(desc).strip,
     }
   }
 
-  errors = page.search("section[@data-tab=docs]/*[text()=\"Errors\"]~table")[0]
+  errors = page.search(".apiReference__errors > table")[0]
   errors = errors.nil? ? {} : errors.search("tr").each_with_object({}){|tr, o|
     tds = tr.search("td")
     next if tds.size == 0
     o[tds[0].text] = ReverseMarkdown.convert(tds[1].inner_html).strip
   }
+
+  response = page.search(".apiReference__response > .apiReference__example")
+  response = response.nil? || response.empty? ? {} : 
+    response.each_with_object({}){|resp, o|
+      kind = resp.text.include?("success") ? "success" : "error"
+      codeResp = resp.search("pre > code")
+      o[kind] = codeResp.empty? ?
+        resp.search("p").text :
+        JSON.parse(codeResp.text)
+    }
+
+  mainDesc = page.search(".apiReference__mainDescription").inner_html
+  extendedDesc = page.search(".apiDocsPage__markdownOutput").inner_html
+
   File.write("#{target_dir}/methods/#{name}.json", JSON.pretty_generate({
-    desc: page.search("section[@data-tab=docs]/p")[0].text, 
+    desc: ReverseMarkdown.convert(mainDesc << "\n\n" << extendedDesc).strip, 
     args: args,
+    response: response,
     errors: errors,
   }))
 
