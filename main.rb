@@ -29,9 +29,9 @@ module ReverseMarkdown
   end
 end
 
-# page  = agent.get 'https://api.slack.com/methods'
-# methods = page.search(".apiReferenceFilterableList__listItemLink").map(&:text)
-methods = ["admin.analytics.getFile"]
+page  = agent.get 'https://api.slack.com/methods'
+methods = page.search(".apiReferenceFilterableList__listItemLink").map(&:text)
+# methods = ["admin.analytics.getFile"]
 methods.each do |name|
   sleep 1
   puts name
